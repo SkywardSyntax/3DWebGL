@@ -21,7 +21,8 @@ To run this application:
 4. Use the trackpad to zoom in and out:
    - Pinch outward to zoom in.
    - Pinch inward to zoom out.
-   - The zooming out limit is set to 50% of the cube's original size.
+   - The zooming out limit is set to 10% of the cube's original size.
+   - The zoom level will now smoothly transition without abrupt resets when zooming out multiple times.
 
 ## Project Structure
 
