@@ -18,6 +18,11 @@ To run this application:
 
 3. Open your browser and navigate to `http://localhost:3000` to see the 3D cube.
 
+4. Use the trackpad to zoom in and out:
+   - Pinch outward to zoom in.
+   - Pinch inward to zoom out.
+   - The zooming out limit is set to 50% of the cube's original size.
+
 ## Project Structure
 
 - `pages/index.js`: Contains the WebGL code for rendering the 3D cube.

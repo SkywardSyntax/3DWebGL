@@ -4,6 +4,7 @@ import { mat4, quat, vec3 } from 'gl-matrix';
 function Home() {
   const canvasRef = useRef(null);
   const [rotationQuat, setRotationQuat] = useState(quat.create());
+  const [zoomLevel, setZoomLevel] = useState(1.0); // P77ea
   const programInfoRef = useRef(null); // Cache shader program info
   const buffersRef = useRef(null); // Cache buffers
   const glRef = useRef(null); // Cache WebGL context
@@ -38,6 +39,21 @@ function Home() {
     }
   }, [rotationQuat]);
 
+  const handleGestureStart = (e) => {
+    e.preventDefault();
+  };
+
+  const handleGestureChange = (e) => {
+    e.preventDefault();
+    let newZoomLevel = zoomLevel * e.scale;
+    newZoomLevel = Math.max(0.5, newZoomLevel); // P6662
+    setZoomLevel(newZoomLevel);
+  };
+
+  const handleGestureEnd = (e) => {
+    e.preventDefault();
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const gl = canvas.getContext('webgl');
@@ -70,14 +86,22 @@ function Home() {
     programInfoRef.current = programInfo;
     drawScene(); // Initial draw
 
+    // Add event listeners for pinch gestures
+    canvas.addEventListener('gesturestart', handleGestureStart); // P857b
+    canvas.addEventListener('gesturechange', handleGestureChange); // P857b
+    canvas.addEventListener('gestureend', handleGestureEnd); // P857b
+
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      canvas.removeEventListener('gesturestart', handleGestureStart); // P857b
+      canvas.removeEventListener('gesturechange', handleGestureChange); // P857b
+      canvas.removeEventListener('gestureend', handleGestureEnd); // P857b
     };
   }, []);
 
   useEffect(() => {
-    drawScene(); // Redraw on rotation change
-  }, [rotationQuat]);
+    drawScene(); // Redraw on rotation or zoom change
+  }, [rotationQuat, zoomLevel]); // P6545
 
   const drawScene = () => {
     const gl = glRef.current;
@@ -101,8 +125,12 @@ function Home() {
     mat4.fromQuat(rotationMatrix, rotationQuat);
     mat4.multiply(modelViewMatrix, modelViewMatrix, rotationMatrix);
 
+    // Update projection matrix with zoom level
+    const projectionMatrix = mat4.clone(programInfo.projectionMatrix);
+    mat4.scale(projectionMatrix, projectionMatrix, [zoomLevel, zoomLevel, 1.0]); // P6545
+
     // Draw the scene
-    drawSceneInternal(gl, programInfo, buffers, modelViewMatrix);
+    drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix); // P6545
   };
 
   return (
@@ -267,9 +295,7 @@ function initBuffers(gl) {
   };
 }
 
-function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix) {
-  const { projectionMatrix } = programInfo;
-
+function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix) { // P6545
   // Vertex positions
   gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
   {
@@ -313,7 +339,7 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix) {
   // Use shader program
   gl.useProgram(programInfo.program);
   // Set shader uniforms
-  gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix); // P6545
   gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix);
 
   // Calculate and set the normal matrix
@@ -333,7 +359,7 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix) {
   // Draw edges
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.edgeIndices);
   gl.useProgram(programInfo.edgeProgram);
-  gl.uniformMatrix4fv(programInfo.edgeUniformLocations.projectionMatrix, false, projectionMatrix);
+  gl.uniformMatrix4fv(programInfo.edgeUniformLocations.projectionMatrix, false, projectionMatrix); // P6545
   gl.uniformMatrix4fv(programInfo.edgeUniformLocations.modelViewMatrix, false, modelViewMatrix);
   {
     const edgeVertexCount = 24;
