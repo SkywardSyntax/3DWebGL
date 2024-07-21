@@ -70,6 +70,10 @@ function Home() {
     }
 
     const programInfo = initProgramInfo(gl);
+    if (!programInfo) {
+      console.error('Failed to initialize program info');
+      return;
+    }
     buffersRef.current = initBuffers(gl);
 
     const aspect = canvas.clientWidth / canvas.clientHeight;
@@ -328,11 +332,35 @@ function initProgramInfo(gl) {
   `;
 
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+  if (!shaderProgram) {
+    console.error('Failed to initialize shader program');
+    return null;
+  }
   const edgeShaderProgram = initShaderProgram(gl, vsSource, fsSourceEdges);
+  if (!edgeShaderProgram) {
+    console.error('Failed to initialize edge shader program');
+    return null;
+  }
   const meshShaderProgram = initShaderProgram(gl, vsSource, fsSourceMesh);
+  if (!meshShaderProgram) {
+    console.error('Failed to initialize mesh shader program');
+    return null;
+  }
   const rayMarchingShaderProgram = initShaderProgram(gl, vsSourceRayMarching, fsSourceRayMarching);
+  if (!rayMarchingShaderProgram) {
+    console.error('Failed to initialize ray marching shader program');
+    return null;
+  }
   const occlusionShaderProgram = initShaderProgram(gl, vsSourceOcclusion, fsSourceOcclusion);
+  if (!occlusionShaderProgram) {
+    console.error('Failed to initialize occlusion shader program');
+    return null;
+  }
   const pcfShaderProgram = initShaderProgram(gl, vsSourcePCF, fsSourcePCF);
+  if (!pcfShaderProgram) {
+    console.error('Failed to initialize PCF shader program');
+    return null;
+  }
   return {
     program: shaderProgram,
     edgeProgram: edgeShaderProgram,
