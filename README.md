@@ -45,3 +45,18 @@ This project includes an optimization technique called frustum culling to avoid 
 ### How to Use
 
 The frustum culling optimization is automatically applied when rendering the cube. No additional configuration is required. Simply run the application as described in the "Getting Started" section, and the optimization will be in effect.
+
+## Caching Mechanisms for Optimization
+
+This project also includes caching mechanisms to further optimize performance by reducing redundant computations.
+
+### Caching Mechanisms Introduced
+
+- **Transformation Matrices**: The transformation matrices are cached to avoid redundant computations in the `drawScene` function.
+- **Transformed Positions**: The results of `calculateTransformedPositions` are cached and reused if the model view matrix has not changed.
+- **Frustum Planes**: The results of `computeFrustumPlanes` are cached and reused if the projection or model view matrix has not changed.
+
+### Benefits of Caching
+
+- **Reduced CPU Load**: By caching and reusing previously computed values, the CPU load is significantly reduced.
+- **Improved Performance**: Caching helps in avoiding redundant computations, leading to smoother and more efficient rendering.
