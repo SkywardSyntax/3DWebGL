@@ -1,13 +1,41 @@
-import { useRef, useEffect, useState } from 'react';
-import { mat4, vec3 } from 'gl-matrix';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { mat4, quat } from 'gl-matrix';
 
 function Home() {
   const canvasRef = useRef(null);
-  const [rotationAngle, setRotationAngle] = useState(0);
-  const [verticalRotationAngle, setVerticalRotationAngle] = useState(0); // P6383
+  const [rotationQuat, setRotationQuat] = useState(quat.create());
   const programInfoRef = useRef(null); // Cache shader program info
   const buffersRef = useRef(null); // Cache buffers
   const glRef = useRef(null); // Cache WebGL context
+  const isDragging = useRef(false);
+  const lastMousePos = useRef({ x: 0, y: 0 });
+
+  const handleMouseDown = (e) => {
+    isDragging.current = true;
+    lastMousePos.current = { x: e.clientX, y: e.clientY };
+    canvasRef.current.style.cursor = "grabbing";
+  }
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    canvasRef.current.style.cursor = "grab";
+  }
+
+  const handleMouseMove = useCallback((e) => {
+    if (isDragging.current) {
+      const deltaX = e.clientX - lastMousePos.current.x;
+      const deltaY = e.clientY - lastMousePos.current.y;
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+
+      const rotationAngle = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * 0.01;
+      const rotationAxis = [deltaY, deltaX, 0.0];
+
+      const newQuat = quat.create();
+      quat.setAxisAngle(newQuat, rotationAxis, rotationAngle);
+      quat.multiply(newQuat, newQuat, rotationQuat); // Accumulate rotation
+      setRotationQuat(newQuat);
+    }
+  }, [rotationQuat]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -48,7 +76,7 @@ function Home() {
 
   useEffect(() => {
     drawScene(); // Redraw on rotation change
-  }, [rotationAngle, verticalRotationAngle]); // Pe6c6
+  }, [rotationQuat]);
 
   const drawScene = () => {
     const gl = glRef.current;
@@ -65,39 +93,27 @@ function Home() {
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Calculate model-view matrix
+    // Calculate model-view matrix from quaternion
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix, modelViewMatrix, [-0.0, 0.0, -6.0]);
-    mat4.rotate(modelViewMatrix, modelViewMatrix, Math.PI / 4, [0, 1, 0]);
-    mat4.rotate(modelViewMatrix, modelViewMatrix, Math.atan(Math.sqrt(2)), [1, 0, -1]);
-    mat4.rotate(modelViewMatrix, modelViewMatrix, rotationAngle * Math.PI / 180, [0, 1, 0]);
-    mat4.rotate(modelViewMatrix, modelViewMatrix, verticalRotationAngle * Math.PI / 180, [1, 0, 0]); // Pe6c6
-    
+    const rotationMatrix = mat4.create();
+    mat4.fromQuat(rotationMatrix, rotationQuat);
+    mat4.multiply(modelViewMatrix, modelViewMatrix, rotationMatrix);
+
     // Draw the scene
     drawSceneInternal(gl, programInfo, buffers, modelViewMatrix);
   };
 
   return (
     <>
-      <canvas ref={canvasRef} style={{ width: '100vw', height: '100vh' }}></canvas>
-      <div className="slider">
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={rotationAngle}
-          onChange={(e) => setRotationAngle(e.target.value)}
-        />
-      </div>
-      <div className="vertical-slider"> // P23b1
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={verticalRotationAngle}
-          onChange={(e) => setVerticalRotationAngle(e.target.value)}
-        />
-      </div>
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100vw', height: '100vh', cursor: 'grab' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      ></canvas>
     </>
   );
 }
@@ -138,7 +154,6 @@ function initProgramInfo(gl) {
 
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const edgeShaderProgram = initShaderProgram(gl, vsSource, fsSourceEdges);
-
   return {
     program: shaderProgram,
     edgeProgram: edgeShaderProgram,
@@ -225,10 +240,9 @@ function initBuffers(gl) {
   // Element buffer for the indices of the cube's faces.
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-
   const indices = [
-     0,  1,  2,  0,  2,  3,  4,  5,  6,  4,  6,  7,
-     8,  9, 10,  8, 10, 11, 12, 13, 14, 12, 14, 15,
+    0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7,
+    8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15,
     16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
   ];
 
@@ -236,7 +250,6 @@ function initBuffers(gl) {
 
   const edgeIndexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeIndexBuffer);
-
   const edgeIndices = [
     0, 1, 1, 2, 2, 3, 3, 0,
     4, 5, 5, 6, 6, 7, 7, 4,
@@ -296,10 +309,8 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix) {
 
   // Element array for faces
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
-
   // Use shader program
   gl.useProgram(programInfo.program);
-
   // Set shader uniforms
   gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
   gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix);
@@ -323,7 +334,6 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix) {
   gl.useProgram(programInfo.edgeProgram);
   gl.uniformMatrix4fv(programInfo.edgeUniformLocations.projectionMatrix, false, projectionMatrix);
   gl.uniformMatrix4fv(programInfo.edgeUniformLocations.modelViewMatrix, false, modelViewMatrix);
-
   {
     const edgeVertexCount = 24;
     const type = gl.UNSIGNED_SHORT;
