@@ -280,17 +280,66 @@ function initProgramInfo(gl) {
     }
   `;
 
+  const vsSourcePCF = `
+    attribute vec4 aVertexPosition;
+    attribute vec3 aVertexNormal;
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    uniform mat4 uNormalMatrix;
+    uniform mat4 uLightSpaceMatrix;
+    varying highp vec3 vLighting;
+    varying highp vec3 vNormal;
+    varying highp vec3 vPosition;
+    varying highp vec4 vLightSpacePosition;
+    void main(void) {
+      gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+      vNormal = mat3(uNormalMatrix) * aVertexNormal;
+      vPosition = vec3(uModelViewMatrix * aVertexPosition);
+      vLightSpacePosition = uLightSpaceMatrix * aVertexPosition;
+      highp vec3 ambient = vec3(0.3, 0.3, 0.3);
+      highp vec3 lightDirection = normalize(vec3(5.0, 5.0, 5.0) - vPosition);
+      highp float diffuse = max(dot(vNormal, lightDirection), 0.0);
+      highp vec3 reflectDir = reflect(-lightDirection, vNormal);
+      highp vec3 viewDir = normalize(-vPosition);
+      highp float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+      vLighting = ambient + (vec3(1.0, 1.0, 1.0) * diffuse) + (vec3(1.0, 1.0, 1.0) * specular);
+    }
+  `;
+
+  const fsSourcePCF = `
+    varying highp vec3 vLighting;
+    varying highp vec4 vLightSpacePosition;
+    uniform sampler2D uShadowMap;
+    uniform float uShadowBias;
+    uniform vec3 uLightColor;
+    void main(void) {
+      highp vec3 color = vec3(1.0, 0.0, 0.0);
+      highp vec3 lighting = vLighting;
+      highp vec3 shadowCoord = vLightSpacePosition.xyz / vLightSpacePosition.w;
+      shadowCoord = shadowCoord * 0.5 + 0.5;
+      highp float shadow = 0.0;
+      highp float shadowMapValue = texture2D(uShadowMap, shadowCoord.xy).r;
+      if (shadowCoord.z > shadowMapValue + uShadowBias) {
+        shadow = 0.5;
+      }
+      lighting = mix(lighting, lighting * shadow, shadow);
+      gl_FragColor = vec4(color * lighting, 1.0);
+    }
+  `;
+
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const edgeShaderProgram = initShaderProgram(gl, vsSource, fsSourceEdges);
   const meshShaderProgram = initShaderProgram(gl, vsSource, fsSourceMesh);
   const rayMarchingShaderProgram = initShaderProgram(gl, vsSourceRayMarching, fsSourceRayMarching);
   const occlusionShaderProgram = initShaderProgram(gl, vsSourceOcclusion, fsSourceOcclusion);
+  const pcfShaderProgram = initShaderProgram(gl, vsSourcePCF, fsSourcePCF);
   return {
     program: shaderProgram,
     edgeProgram: edgeShaderProgram,
     meshProgram: meshShaderProgram,
     rayMarchingProgram: rayMarchingShaderProgram,
     occlusionProgram: occlusionShaderProgram,
+    pcfProgram: pcfShaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
@@ -306,6 +355,10 @@ function initProgramInfo(gl) {
     },
     occlusionAttribLocations: {
       vertexPosition: gl.getAttribLocation(occlusionShaderProgram, 'aVertexPosition'),
+    },
+    pcfAttribLocations: {
+      vertexPosition: gl.getAttribLocation(pcfShaderProgram, 'aVertexPosition'),
+      vertexNormal: gl.getAttribLocation(pcfShaderProgram, 'aVertexNormal'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -334,6 +387,15 @@ function initProgramInfo(gl) {
     occlusionUniformLocations: {
       projectionMatrix: gl.getUniformLocation(occlusionShaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(occlusionShaderProgram, 'uModelViewMatrix'),
+    },
+    pcfUniformLocations: {
+      projectionMatrix: gl.getUniformLocation(pcfShaderProgram, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(pcfShaderProgram, 'uModelViewMatrix'),
+      normalMatrix: gl.getUniformLocation(pcfShaderProgram, 'uNormalMatrix'),
+      lightSpaceMatrix: gl.getUniformLocation(pcfShaderProgram, 'uLightSpaceMatrix'),
+      shadowMap: gl.getUniformLocation(pcfShaderProgram, 'uShadowMap'),
+      shadowBias: gl.getUniformLocation(pcfShaderProgram, 'uShadowBias'),
+      lightColor: gl.getUniformLocation(pcfShaderProgram, 'uLightColor'),
     },
   };
 }
@@ -518,6 +580,21 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projection
   gl.uniform3fv(programInfo.rayMarchingUniformLocations.lightPosition, [5.0, 5.0, 5.0]);
   gl.uniform3fv(programInfo.rayMarchingUniformLocations.lightColor, [1.0, 1.0, 1.0]);
   gl.uniform3fv(programInfo.rayMarchingUniformLocations.ambientLight, [0.3, 0.3, 0.3]);
+  {
+    const vertexCount = 36;
+    const type = gl.UNSIGNED_SHORT;
+    const offset = 0;
+    gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+  }
+
+  gl.useProgram(programInfo.pcfProgram);
+  gl.uniformMatrix4fv(programInfo.pcfUniformLocations.projectionMatrix, false, projectionMatrix);
+  gl.uniformMatrix4fv(programInfo.pcfUniformLocations.modelViewMatrix, false, modelViewMatrix);
+  gl.uniformMatrix4fv(programInfo.pcfUniformLocations.normalMatrix, false, normalMatrix);
+  gl.uniformMatrix4fv(programInfo.pcfUniformLocations.lightSpaceMatrix, false, mat4.create());
+  gl.uniform1i(programInfo.pcfUniformLocations.shadowMap, 0);
+  gl.uniform1f(programInfo.pcfUniformLocations.shadowBias, 0.005);
+  gl.uniform3fv(programInfo.pcfUniformLocations.lightColor, [1.0, 1.0, 1.0]);
   {
     const vertexCount = 36;
     const type = gl.UNSIGNED_SHORT;
