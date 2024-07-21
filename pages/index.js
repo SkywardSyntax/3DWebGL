@@ -194,13 +194,86 @@ function initProgramInfo(gl) {
     }
   `;
 
+  const vsSourceRayMarching = `
+    precision highp float;
+    attribute vec4 aVertexPosition;
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    varying vec3 vRayDirection;
+    void main(void) {
+      vec4 worldPosition = uModelViewMatrix * aVertexPosition;
+      vRayDirection = normalize(worldPosition.xyz);
+      gl_Position = uProjectionMatrix * worldPosition;
+    }
+  `;
+
+  const fsSourceRayMarching = `
+    precision highp float;
+    varying vec3 vRayDirection;
+    uniform vec3 uCameraPosition;
+    uniform vec3 uLightPosition;
+    uniform vec3 uLightColor;
+    uniform vec3 uAmbientLight;
+    const int MAX_STEPS = 100;
+    const float MAX_DISTANCE = 100.0;
+    const float SURFACE_DISTANCE = 0.01;
+    float sphereSDF(vec3 point, vec3 center, float radius) {
+      return length(point - center) - radius;
+    }
+    float sceneSDF(vec3 point) {
+      return sphereSDF(point, vec3(0.0, 0.0, 0.0), 1.0);
+    }
+    vec3 estimateNormal(vec3 point) {
+      const vec3 smallStep = vec3(0.001, 0.0, 0.0);
+      float gradientX = sceneSDF(point + smallStep.xyy) - sceneSDF(point - smallStep.xyy);
+      float gradientY = sceneSDF(point + smallStep.yxy) - sceneSDF(point - smallStep.yxy);
+      float gradientZ = sceneSDF(point + smallStep.yyx) - sceneSDF(point - smallStep.yyx);
+      return normalize(vec3(gradientX, gradientY, gradientZ));
+    }
+    float rayMarch(vec3 rayOrigin, vec3 rayDirection) {
+      float distanceFromOrigin = 0.0;
+      for (int i = 0; i < MAX_STEPS; i++) {
+        vec3 currentPoint = rayOrigin + distanceFromOrigin * rayDirection;
+        float distanceToSurface = sceneSDF(currentPoint);
+        if (distanceToSurface < SURFACE_DISTANCE) {
+          return distanceFromOrigin;
+        }
+        distanceFromOrigin += distanceToSurface;
+        if (distanceFromOrigin >= MAX_DISTANCE) {
+          return MAX_DISTANCE;
+        }
+      }
+      return MAX_DISTANCE;
+    }
+    void main(void) {
+      vec3 rayOrigin = uCameraPosition;
+      vec3 rayDirection = normalize(vRayDirection);
+      float distance = rayMarch(rayOrigin, rayDirection);
+      if (distance < MAX_DISTANCE) {
+        vec3 hitPoint = rayOrigin + rayDirection * distance;
+        vec3 normal = estimateNormal(hitPoint);
+        vec3 lightDirection = normalize(uLightPosition - hitPoint);
+        float diffuse = max(dot(normal, lightDirection), 0.0);
+        vec3 reflectDir = reflect(-lightDirection, normal);
+        vec3 viewDir = normalize(uCameraPosition - hitPoint);
+        float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+        vec3 color = uAmbientLight + (uLightColor * diffuse) + (uLightColor * specular);
+        gl_FragColor = vec4(color, 1.0);
+      } else {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+      }
+    }
+  `;
+
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const edgeShaderProgram = initShaderProgram(gl, vsSource, fsSourceEdges);
   const meshShaderProgram = initShaderProgram(gl, vsSource, fsSourceMesh);
+  const rayMarchingShaderProgram = initShaderProgram(gl, vsSourceRayMarching, fsSourceRayMarching);
   return {
     program: shaderProgram,
     edgeProgram: edgeShaderProgram,
     meshProgram: meshShaderProgram,
+    rayMarchingProgram: rayMarchingShaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
@@ -210,6 +283,9 @@ function initProgramInfo(gl) {
     },
     meshAttribLocations: {
       vertexPosition: gl.getAttribLocation(meshShaderProgram, 'aVertexPosition'),
+    },
+    rayMarchingAttribLocations: {
+      vertexPosition: gl.getAttribLocation(rayMarchingShaderProgram, 'aVertexPosition'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -226,6 +302,14 @@ function initProgramInfo(gl) {
     meshUniformLocations: {
       projectionMatrix: gl.getUniformLocation(meshShaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(meshShaderProgram, 'uModelViewMatrix'),
+    },
+    rayMarchingUniformLocations: {
+      projectionMatrix: gl.getUniformLocation(rayMarchingShaderProgram, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(rayMarchingShaderProgram, 'uModelViewMatrix'),
+      cameraPosition: gl.getUniformLocation(rayMarchingShaderProgram, 'uCameraPosition'),
+      lightPosition: gl.getUniformLocation(rayMarchingShaderProgram, 'uLightPosition'),
+      lightColor: gl.getUniformLocation(rayMarchingShaderProgram, 'uLightColor'),
+      ambientLight: gl.getUniformLocation(rayMarchingShaderProgram, 'uAmbientLight'),
     },
   };
 }
@@ -393,6 +477,20 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projection
       const offset = 0;
       gl.drawElements(gl.LINES, vertexCount, type, offset);
     }
+  }
+
+  gl.useProgram(programInfo.rayMarchingProgram);
+  gl.uniformMatrix4fv(programInfo.rayMarchingUniformLocations.projectionMatrix, false, projectionMatrix);
+  gl.uniformMatrix4fv(programInfo.rayMarchingUniformLocations.modelViewMatrix, false, modelViewMatrix);
+  gl.uniform3fv(programInfo.rayMarchingUniformLocations.cameraPosition, [0.0, 0.0, 5.0]);
+  gl.uniform3fv(programInfo.rayMarchingUniformLocations.lightPosition, [5.0, 5.0, 5.0]);
+  gl.uniform3fv(programInfo.rayMarchingUniformLocations.lightColor, [1.0, 1.0, 1.0]);
+  gl.uniform3fv(programInfo.rayMarchingUniformLocations.ambientLight, [0.3, 0.3, 0.3]);
+  {
+    const vertexCount = 36;
+    const type = gl.UNSIGNED_SHORT;
+    const offset = 0;
+    gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
   }
 }
 
