@@ -4,6 +4,7 @@ import { mat4, vec3 } from 'gl-matrix';
 function Home() {
   const canvasRef = useRef(null);
   const [rotationAngle, setRotationAngle] = useState(0);
+  const [verticalRotationAngle, setVerticalRotationAngle] = useState(0); // P6383
   const programInfoRef = useRef(null); // Cache shader program info
   const buffersRef = useRef(null); // Cache buffers
   const glRef = useRef(null); // Cache WebGL context
@@ -47,7 +48,7 @@ function Home() {
 
   useEffect(() => {
     drawScene(); // Redraw on rotation change
-  }, [rotationAngle]);
+  }, [rotationAngle, verticalRotationAngle]); // Pe6c6
 
   const drawScene = () => {
     const gl = glRef.current;
@@ -70,6 +71,7 @@ function Home() {
     mat4.rotate(modelViewMatrix, modelViewMatrix, Math.PI / 4, [0, 1, 0]);
     mat4.rotate(modelViewMatrix, modelViewMatrix, Math.atan(Math.sqrt(2)), [1, 0, -1]);
     mat4.rotate(modelViewMatrix, modelViewMatrix, rotationAngle * Math.PI / 180, [0, 1, 0]);
+    mat4.rotate(modelViewMatrix, modelViewMatrix, verticalRotationAngle * Math.PI / 180, [1, 0, 0]); // Pe6c6
     
     // Draw the scene
     drawSceneInternal(gl, programInfo, buffers, modelViewMatrix);
@@ -85,6 +87,15 @@ function Home() {
           max="360"
           value={rotationAngle}
           onChange={(e) => setRotationAngle(e.target.value)}
+        />
+      </div>
+      <div className="vertical-slider"> // P23b1
+        <input
+          type="range"
+          min="0"
+          max="360"
+          value={verticalRotationAngle}
+          onChange={(e) => setVerticalRotationAngle(e.target.value)}
         />
       </div>
     </>

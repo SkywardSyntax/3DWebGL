@@ -28,3 +28,19 @@ body {
 .slider input[type="range"] {
   width: 100%;
 }
+
+.vertical-slider {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+  width: 300px;
+  padding: 10px;
+  background: rgba(128, 128, 128, 0.5);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.vertical-slider input[type="range"] {
+  width: 100%;
+}
