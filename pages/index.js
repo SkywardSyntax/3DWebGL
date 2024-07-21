@@ -146,21 +146,18 @@ function initProgramInfo(gl) {
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
     uniform mat4 uNormalMatrix;
-    uniform mat4 uLightSpaceMatrix;
-    uniform vec3 uLightDirection;
+    uniform vec3 uLightPosition;
     uniform vec3 uLightColor;
     uniform vec3 uAmbientLight;
     varying highp vec3 vLighting;
     varying highp vec3 vNormal;
     varying highp vec3 vPosition;
-    varying highp vec4 vShadowCoord;
     void main(void) {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
       vNormal = mat3(uNormalMatrix) * aVertexNormal;
       vPosition = vec3(uModelViewMatrix * aVertexPosition);
-      vShadowCoord = uLightSpaceMatrix * aVertexPosition;
       highp vec3 ambient = uAmbientLight;
-      highp vec3 lightDirection = normalize(uLightDirection);
+      highp vec3 lightDirection = normalize(uLightPosition - vPosition);
       highp float diffuse = max(dot(vNormal, lightDirection), 0.0);
       highp vec3 reflectDir = reflect(-lightDirection, vNormal);
       highp vec3 viewDir = normalize(-vPosition);
@@ -171,13 +168,9 @@ function initProgramInfo(gl) {
 
   const fsSource = `
     varying highp vec3 vLighting;
-    varying highp vec4 vShadowCoord;
-    uniform sampler2D uShadowMap;
     void main(void) {
-      highp vec3 shadowCoord = vShadowCoord.xyz / vShadowCoord.w;
-      highp float shadow = texture2D(uShadowMap, shadowCoord.xy).r < shadowCoord.z ? 0.5 : 1.0;
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-      gl_FragColor.rgb *= vLighting * shadow;
+      gl_FragColor.rgb *= vLighting;
     }
   `;
 
@@ -203,11 +196,9 @@ function initProgramInfo(gl) {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
       normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
-      lightSpaceMatrix: gl.getUniformLocation(shaderProgram, 'uLightSpaceMatrix'),
-      lightDirection: gl.getUniformLocation(shaderProgram, 'uLightDirection'),
+      lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
       lightColor: gl.getUniformLocation(shaderProgram, 'uLightColor'),
       ambientLight: gl.getUniformLocation(shaderProgram, 'uAmbientLight'),
-      shadowMap: gl.getUniformLocation(shaderProgram, 'uShadowMap'),
     },
     edgeUniformLocations: {
       projectionMatrix: gl.getUniformLocation(edgeShaderProgram, 'uProjectionMatrix'),
@@ -346,12 +337,7 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projection
   mat4.transpose(normalMatrix, normalMatrix);
   gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix);
 
-  const lightSpaceMatrix = mat4.create();
-  mat4.ortho(lightSpaceMatrix, -10, 10, -10, 10, -10, 20);
-  mat4.lookAt(lightSpaceMatrix, [5.0, 5.0, 5.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
-  gl.uniformMatrix4fv(programInfo.uniformLocations.lightSpaceMatrix, false, lightSpaceMatrix);
-
-  gl.uniform3fv(programInfo.uniformLocations.lightDirection, [0.0, -1.0, -1.0]);
+  gl.uniform3fv(programInfo.uniformLocations.lightPosition, [5.0, 5.0, 5.0]);
   gl.uniform3fv(programInfo.uniformLocations.lightColor, [1.0, 1.0, 1.0]);
   gl.uniform3fv(programInfo.uniformLocations.ambientLight, [0.3, 0.3, 0.3]);
 
