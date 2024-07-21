@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { mat4, quat } from 'gl-matrix';
+import { mat4, quat, vec3 } from 'gl-matrix';
 
 function Home() {
   const canvasRef = useRef(null);
@@ -28,7 +28,8 @@ function Home() {
       lastMousePos.current = { x: e.clientX, y: e.clientY };
 
       const rotationAngle = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * 0.01;
-      const rotationAxis = [deltaY, deltaX, 0.0];
+      const rotationAxis = vec3.fromValues(deltaY, deltaX, 0.0);
+      vec3.normalize(rotationAxis, rotationAxis);
 
       const newQuat = quat.create();
       quat.setAxisAngle(newQuat, rotationAxis, rotationAngle);
