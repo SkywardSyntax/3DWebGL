@@ -153,6 +153,7 @@ function Home() {
 
 function initProgramInfo(gl) {
   const vsSource = `
+    precision highp float;
     attribute vec4 aVertexPosition;
     attribute vec3 aVertexNormal;
     uniform mat4 uModelViewMatrix;
@@ -179,6 +180,7 @@ function initProgramInfo(gl) {
   `;
 
   const fsSource = `
+    precision highp float;
     varying highp vec3 vLighting;
     void main(void) {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
@@ -270,6 +272,7 @@ function initProgramInfo(gl) {
   `;
 
   const vsSourceOcclusion = `
+    precision highp float;
     attribute vec4 aVertexPosition;
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
@@ -279,12 +282,14 @@ function initProgramInfo(gl) {
   `;
 
   const fsSourceOcclusion = `
+    precision highp float;
     void main(void) {
       gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
   `;
 
   const vsSourcePCF = `
+    precision highp float;
     attribute vec4 aVertexPosition;
     attribute vec3 aVertexNormal;
     uniform mat4 uModelViewMatrix;
@@ -311,6 +316,7 @@ function initProgramInfo(gl) {
   `;
 
   const fsSourcePCF = `
+    precision highp float;
     varying highp vec3 vLighting;
     varying highp vec4 vLightSpacePosition;
     uniform sampler2D uShadowMap;
