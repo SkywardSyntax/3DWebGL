@@ -61,11 +61,11 @@ function Home() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl2');
     glRef.current = gl;
 
     if (!gl) {
-      console.error('WebGL not supported');
+      console.error('WebGL2 not supported');
       return;
     }
 
@@ -422,6 +422,11 @@ function initBuffers(gl) {
 }
 
 function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix, showMesh) {
+  if (!gl.createQuery) {
+    console.error('WebGL2 createQuery not supported');
+    return;
+  }
+
   const query = gl.createQuery();
   gl.beginQuery(gl.ANY_SAMPLES_PASSED, query);
 
