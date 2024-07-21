@@ -94,16 +94,28 @@ function Home() {
 function initProgramInfo(gl) {
   const vsSource = `
     attribute vec4 aVertexPosition;
+    attribute vec3 aVertexNormal;
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
+    uniform mat4 uNormalMatrix;
+    varying highp vec3 vLighting;
     void main(void) {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+      // Apply lighting effect
+      highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
+      highp vec3 directionalLightColor = vec3(1, 1, 1);
+      highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
+      highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
+      highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+      vLighting = ambientLight + (directionalLightColor * directional);
     }
   `;
 
   const fsSource = `
+    varying highp vec3 vLighting;
     void main(void) {
-      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); // Red color
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      gl_FragColor.rgb *= vLighting;
     }
   `;
 
@@ -121,6 +133,7 @@ function initProgramInfo(gl) {
     edgeProgram: edgeShaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+      vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
     },
     edgeAttribLocations: {
       vertexPosition: gl.getAttribLocation(edgeShaderProgram, 'aVertexPosition'),
@@ -128,6 +141,7 @@ function initProgramInfo(gl) {
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+      normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
     },
     edgeUniformLocations: {
       projectionMatrix: gl.getUniformLocation(edgeShaderProgram, 'uProjectionMatrix'),
@@ -180,13 +194,30 @@ function initBuffers(gl) {
   // Assign positions to buffer.
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
+  // Create a buffer for the cube's vertex normals.
+  const normalBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+
+  // Define the normals for each vertex of the cube.
+  const vertexNormals = [
+    0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
+    0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0,
+    0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0,
+    0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0,
+    1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+    -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0,
+  ];
+
+  // Assign normals to buffer.
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
+
   // Element buffer for the indices of the cube's faces.
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
   const indices = [
-    0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7,
-    8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15,
+     0,  1,  2,  0,  2,  3,  4,  5,  6,  4,  6,  7,
+     8,  9, 10,  8, 10, 11, 12, 13, 14, 12, 14, 15,
     16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
   ];
 
@@ -205,6 +236,7 @@ function initBuffers(gl) {
 
   return {
     position: positionBuffer,
+    normal: normalBuffer,
     indices: indexBuffer,
     edgeIndices: edgeIndexBuffer,
   };
@@ -232,6 +264,25 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix) {
     gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
   }
 
+  // Vertex normals
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
+  {
+    const numComponents = 3;
+    const type = gl.FLOAT;
+    const normalize = false;
+    const stride = 0;
+    const offset = 0;
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.vertexNormal,
+      numComponents,
+      type,
+      normalize,
+      stride,
+      offset
+    );
+    gl.enableVertexAttribArray(programInfo.attribLocations.vertexNormal);
+  }
+
   // Element array for faces
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
 
@@ -241,6 +292,12 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix) {
   // Set shader uniforms
   gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
   gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix);
+
+  // Calculate and set the normal matrix
+  const normalMatrix = mat4.create();
+  mat4.invert(normalMatrix, modelViewMatrix);
+  mat4.transpose(normalMatrix, normalMatrix);
+  gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix);
 
   // Draw the cube faces
   {

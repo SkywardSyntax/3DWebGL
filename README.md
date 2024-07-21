@@ -60,3 +60,15 @@ This project also includes caching mechanisms to further optimize performance by
 
 - **Reduced CPU Load**: By caching and reusing previously computed values, the CPU load is significantly reduced.
 - **Improved Performance**: Caching helps in avoiding redundant computations, leading to smoother and more efficient rendering.
+
+## Lighting and Shadows
+
+This project now includes a fixed light source with visible source, and shadows and highlights are added to the webpage. The light source is a point light and is white in color. The shaders use Phong shading to calculate the lighting effects.
+
+### Light Source and Shadows
+
+The light source is fixed and positioned in the scene. The vertex shader includes normal vectors and calculates lighting effects based on the light source. The fragment shader calculates the final color of the cube based on the lighting effects, including shadows and highlights.
+
+### Adjusting Light Source
+
+To adjust the light source position and color, you can modify the relevant code in `pages/index.js`. Look for the light position and color definitions in the `initProgramInfo` function and update them as needed.
