@@ -98,3 +98,23 @@ The scene now supports multiple light sources, including point lights and spotli
 ### Adjusting Light Properties
 
 To adjust the light properties, such as position, color, and type, you can modify the relevant code in `pages/index.js`. Look for the light definitions in the `initProgramInfo` function and update them as needed.
+
+## Advanced Shadow Mapping Techniques
+
+This project now includes advanced shadow mapping techniques to create more realistic shadows. The shadow mapping technique used is Percentage Closer Filtering (PCF), which helps to smooth out the edges of the shadows and reduce aliasing artifacts.
+
+### Shadow Calculations
+
+The vertex and fragment shaders have been updated to include shadow calculations. The vertex shader calculates the shadow coordinates, and the fragment shader uses these coordinates to determine the shadow intensity using the shadow map.
+
+### Directional Light Source
+
+The light source has been updated to a directional light with adjustable properties. The properties of the light source, such as direction and color, can be adjusted in the `initProgramInfo` function in `pages/index.js`.
+
+### Adjusting Light Source Properties
+
+To adjust the light source properties, such as direction and color, you can modify the relevant code in `pages/index.js`. Look for the light direction and color definitions in the `initProgramInfo` function and update them as needed.
+
+### Viewing Realistic Shadows
+
+To see the realistic shadows in action, run the application as described in the "Getting Started" section. The shadows should now appear smoother and more realistic due to the advanced shadow mapping techniques.
