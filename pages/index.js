@@ -40,7 +40,15 @@ function Home() {
       }
     `;
 
+    // Fragment shader program for edges
+    const fsSourceEdges = `
+      void main(void) {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // White color for edges
+      }
+    `;
+
     const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+    const edgeShaderProgram = initShaderProgram(gl, vsSource, fsSourceEdges);
 
     const programInfo = {
       program: shaderProgram,
@@ -53,10 +61,21 @@ function Home() {
       },
     };
 
+    const edgeProgramInfo = {
+      program: edgeShaderProgram,
+      attribLocations: {
+        vertexPosition: gl.getAttribLocation(edgeShaderProgram, 'aVertexPosition'),
+      },
+      uniformLocations: {
+        projectionMatrix: gl.getUniformLocation(edgeShaderProgram, 'uProjectionMatrix'),
+        modelViewMatrix: gl.getUniformLocation(edgeShaderProgram, 'uModelViewMatrix'),
+      },
+    };
+
     const buffers = initBuffers(gl);
 
     const draw = () => {
-      drawScene(gl, programInfo, buffers, rotationAngle);
+      drawScene(gl, programInfo, edgeProgramInfo, buffers, rotationAngle);
       requestAnimationFrame(draw);
     };
 
@@ -174,13 +193,26 @@ function initBuffers(gl) {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
     new Uint16Array(indices), gl.STATIC_DRAW);
 
+  const edgeIndexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeIndexBuffer);
+
+  const edgeIndices = [
+    0, 1, 1, 2, 2, 3, 3, 0, // front edges
+    4, 5, 5, 6, 6, 7, 7, 4, // back edges
+    0, 4, 1, 5, 2, 6, 3, 7  // connecting edges
+  ];
+
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+    new Uint16Array(edgeIndices), gl.STATIC_DRAW);
+
   return {
     position: positionBuffer,
     indices: indexBuffer,
+    edgeIndices: edgeIndexBuffer,
   };
 }
 
-function drawScene(gl, programInfo, buffers, rotationAngle) {
+function drawScene(gl, programInfo, edgeProgramInfo, buffers, rotationAngle) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0); // Clear to black, fully opaque
   gl.clearDepth(1.0); // Clear everything
   gl.enable(gl.DEPTH_TEST); // Enable depth testing
@@ -267,6 +299,19 @@ function drawScene(gl, programInfo, buffers, rotationAngle) {
       gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, offset);
     }
   }
+
+  // Draw edges
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.edgeIndices);
+  gl.useProgram(edgeProgramInfo.program);
+  gl.uniformMatrix4fv(
+    edgeProgramInfo.uniformLocations.projectionMatrix,
+    false,
+    projectionMatrix);
+  gl.uniformMatrix4fv(
+    edgeProgramInfo.uniformLocations.modelViewMatrix,
+    false,
+    modelViewMatrix);
+  gl.drawElements(gl.LINES, 24, gl.UNSIGNED_SHORT, 0);
 }
 
 function computeFrustumPlanes(projectionMatrix, modelViewMatrix) {
