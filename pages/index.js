@@ -265,15 +265,32 @@ function initProgramInfo(gl) {
     }
   `;
 
+  const vsSourceOcclusion = `
+    attribute vec4 aVertexPosition;
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    void main(void) {
+      gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+    }
+  `;
+
+  const fsSourceOcclusion = `
+    void main(void) {
+      gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+  `;
+
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const edgeShaderProgram = initShaderProgram(gl, vsSource, fsSourceEdges);
   const meshShaderProgram = initShaderProgram(gl, vsSource, fsSourceMesh);
   const rayMarchingShaderProgram = initShaderProgram(gl, vsSourceRayMarching, fsSourceRayMarching);
+  const occlusionShaderProgram = initShaderProgram(gl, vsSourceOcclusion, fsSourceOcclusion);
   return {
     program: shaderProgram,
     edgeProgram: edgeShaderProgram,
     meshProgram: meshShaderProgram,
     rayMarchingProgram: rayMarchingShaderProgram,
+    occlusionProgram: occlusionShaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
@@ -286,6 +303,9 @@ function initProgramInfo(gl) {
     },
     rayMarchingAttribLocations: {
       vertexPosition: gl.getAttribLocation(rayMarchingShaderProgram, 'aVertexPosition'),
+    },
+    occlusionAttribLocations: {
+      vertexPosition: gl.getAttribLocation(occlusionShaderProgram, 'aVertexPosition'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -310,6 +330,10 @@ function initProgramInfo(gl) {
       lightPosition: gl.getUniformLocation(rayMarchingShaderProgram, 'uLightPosition'),
       lightColor: gl.getUniformLocation(rayMarchingShaderProgram, 'uLightColor'),
       ambientLight: gl.getUniformLocation(rayMarchingShaderProgram, 'uAmbientLight'),
+    },
+    occlusionUniformLocations: {
+      projectionMatrix: gl.getUniformLocation(occlusionShaderProgram, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(occlusionShaderProgram, 'uModelViewMatrix'),
     },
   };
 }
@@ -398,6 +422,9 @@ function initBuffers(gl) {
 }
 
 function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix, showMesh) {
+  const query = gl.createQuery();
+  gl.beginQuery(gl.ANY_SAMPLES_PASSED, query);
+
   gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
   {
     const numComponents = 3;
@@ -491,6 +518,24 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projection
     const type = gl.UNSIGNED_SHORT;
     const offset = 0;
     gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+  }
+
+  gl.endQuery(gl.ANY_SAMPLES_PASSED);
+  const available = gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE);
+  const passed = gl.getQueryParameter(query, gl.QUERY_RESULT);
+
+  if (available && passed) {
+    // Object is visible, render it
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+    gl.useProgram(programInfo.program);
+    gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
+    gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix);
+    {
+      const vertexCount = 36;
+      const type = gl.UNSIGNED_SHORT;
+      const offset = 0;
+      gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+    }
   }
 }
 
