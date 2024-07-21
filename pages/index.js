@@ -224,8 +224,10 @@ function drawScene(gl, programInfo, buffers, rotationAngle) {
     { vertices: [20, 21, 22, 23], visible: false },
   ];
 
+  const transformedPositions = calculateTransformedPositions(buffers.position, modelViewMatrix);
+
   for (let face of faces) {
-    face.visible = isFaceVisible(face.vertices, buffers.position, frustumPlanes);
+    face.visible = isFaceVisible(face.vertices, transformedPositions, frustumPlanes);
   }
 
   {
@@ -323,12 +325,26 @@ function computeFrustumPlanes(projectionMatrix, modelViewMatrix) {
   return planes;
 }
 
-function isFaceVisible(vertices, positionBuffer, frustumPlanes) {
+function calculateTransformedPositions(positionBuffer, modelViewMatrix) {
   const positions = new Float32Array(positionBuffer);
+  const transformedPositions = new Float32Array(positions.length);
+
+  for (let i = 0; i < positions.length; i += 3) {
+    const vertex = vec3.fromValues(positions[i], positions[i + 1], positions[i + 2]);
+    vec3.transformMat4(vertex, vertex, modelViewMatrix);
+    transformedPositions[i] = vertex[0];
+    transformedPositions[i + 1] = vertex[1];
+    transformedPositions[i + 2] = vertex[2];
+  }
+
+  return transformedPositions;
+}
+
+function isFaceVisible(vertices, transformedPositions, frustumPlanes) {
   for (let i = 0; i < vertices.length; i++) {
-    const x = positions[vertices[i] * 3];
-    const y = positions[vertices[i] * 3 + 1];
-    const z = positions[vertices[i] * 3 + 2];
+    const x = transformedPositions[vertices[i] * 3];
+    const y = transformedPositions[vertices[i] * 3 + 1];
+    const z = transformedPositions[vertices[i] * 3 + 2];
     if (isPointInFrustum(x, y, z, frustumPlanes)) {
       return true;
     }
