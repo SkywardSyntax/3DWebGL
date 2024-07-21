@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { mat4 } from 'gl-matrix';
+import { mat4, vec3 } from 'gl-matrix';
 
 function Home() {
   const canvasRef = useRef(null);
@@ -213,6 +213,21 @@ function drawScene(gl, programInfo, buffers, rotationAngle) {
   // Apply rotation from slider
   mat4.rotate(modelViewMatrix, modelViewMatrix, rotationAngle * Math.PI / 180, [0, 1, 0]);
 
+  const frustumPlanes = computeFrustumPlanes(projectionMatrix, modelViewMatrix);
+
+  const faces = [
+    { vertices: [0, 1, 2, 3], visible: false },
+    { vertices: [4, 5, 6, 7], visible: false },
+    { vertices: [8, 9, 10, 11], visible: false },
+    { vertices: [12, 13, 14, 15], visible: false },
+    { vertices: [16, 17, 18, 19], visible: false },
+    { vertices: [20, 21, 22, 23], visible: false },
+  ];
+
+  for (let face of faces) {
+    face.visible = isFaceVisible(face.vertices, buffers.position, frustumPlanes);
+  }
+
   {
     const numComponents = 3;
     const type = gl.FLOAT;
@@ -244,12 +259,90 @@ function drawScene(gl, programInfo, buffers, rotationAngle) {
     false,
     modelViewMatrix);
 
-  {
-    const vertexCount = 36;
-    const type = gl.UNSIGNED_SHORT;
-    const offset = 0;
-    gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+  for (let i = 0; i < faces.length; i++) {
+    if (faces[i].visible) {
+      const offset = i * 6 * 2;
+      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, offset);
+    }
   }
+}
+
+function computeFrustumPlanes(projectionMatrix, modelViewMatrix) {
+  const combinedMatrix = mat4.create();
+  mat4.multiply(combinedMatrix, projectionMatrix, modelViewMatrix);
+
+  const planes = [];
+  for (let i = 0; i < 6; i++) {
+    planes.push(vec3.create());
+  }
+
+  // Left plane
+  planes[0][0] = combinedMatrix[3] + combinedMatrix[0];
+  planes[0][1] = combinedMatrix[7] + combinedMatrix[4];
+  planes[0][2] = combinedMatrix[11] + combinedMatrix[8];
+  planes[0][3] = combinedMatrix[15] + combinedMatrix[12];
+
+  // Right plane
+  planes[1][0] = combinedMatrix[3] - combinedMatrix[0];
+  planes[1][1] = combinedMatrix[7] - combinedMatrix[4];
+  planes[1][2] = combinedMatrix[11] - combinedMatrix[8];
+  planes[1][3] = combinedMatrix[15] - combinedMatrix[12];
+
+  // Bottom plane
+  planes[2][0] = combinedMatrix[3] + combinedMatrix[1];
+  planes[2][1] = combinedMatrix[7] + combinedMatrix[5];
+  planes[2][2] = combinedMatrix[11] + combinedMatrix[9];
+  planes[2][3] = combinedMatrix[15] + combinedMatrix[13];
+
+  // Top plane
+  planes[3][0] = combinedMatrix[3] - combinedMatrix[1];
+  planes[3][1] = combinedMatrix[7] - combinedMatrix[5];
+  planes[3][2] = combinedMatrix[11] - combinedMatrix[9];
+  planes[3][3] = combinedMatrix[15] - combinedMatrix[13];
+
+  // Near plane
+  planes[4][0] = combinedMatrix[3] + combinedMatrix[2];
+  planes[4][1] = combinedMatrix[7] + combinedMatrix[6];
+  planes[4][2] = combinedMatrix[11] + combinedMatrix[10];
+  planes[4][3] = combinedMatrix[15] + combinedMatrix[14];
+
+  // Far plane
+  planes[5][0] = combinedMatrix[3] - combinedMatrix[2];
+  planes[5][1] = combinedMatrix[7] - combinedMatrix[6];
+  planes[5][2] = combinedMatrix[11] - combinedMatrix[10];
+  planes[5][3] = combinedMatrix[15] - combinedMatrix[14];
+
+  for (let i = 0; i < 6; i++) {
+    const length = Math.sqrt(planes[i][0] * planes[i][0] + planes[i][1] * planes[i][1] + planes[i][2] * planes[i][2]);
+    planes[i][0] /= length;
+    planes[i][1] /= length;
+    planes[i][2] /= length;
+    planes[i][3] /= length;
+  }
+
+  return planes;
+}
+
+function isFaceVisible(vertices, positionBuffer, frustumPlanes) {
+  const positions = new Float32Array(positionBuffer);
+  for (let i = 0; i < vertices.length; i++) {
+    const x = positions[vertices[i] * 3];
+    const y = positions[vertices[i] * 3 + 1];
+    const z = positions[vertices[i] * 3 + 2];
+    if (isPointInFrustum(x, y, z, frustumPlanes)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isPointInFrustum(x, y, z, frustumPlanes) {
+  for (let i = 0; i < 6; i++) {
+    if (frustumPlanes[i][0] * x + frustumPlanes[i][1] * y + frustumPlanes[i][2] * z + frustumPlanes[i][3] <= 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export default Home;

@@ -33,3 +33,15 @@ To run this application:
 
 A slider UI component has been added to control the rotation of the cube. You can use the slider at the bottom of the screen to rotate the cube along the Y-axis.
 
+## Frustum Culling Optimization
+
+This project includes an optimization technique called frustum culling to avoid rendering parts of the cube that are not visible. Frustum culling improves performance by skipping the rendering of faces of the cube that are outside the view frustum.
+
+### Benefits of Frustum Culling
+
+- **Improved Performance**: By not rendering faces that are not visible, the application can run more efficiently and smoothly.
+- **Reduced GPU Load**: Frustum culling reduces the number of draw calls and the amount of work the GPU has to do, leading to better overall performance.
+
+### How to Use
+
+The frustum culling optimization is automatically applied when rendering the cube. No additional configuration is required. Simply run the application as described in the "Getting Started" section, and the optimization will be in effect.
