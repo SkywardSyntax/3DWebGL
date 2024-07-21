@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { mat4 } from 'gl-matrix';
 
 function Home() {
   const canvasRef = useRef(null);
