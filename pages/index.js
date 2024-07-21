@@ -403,7 +403,17 @@ function initProgramInfo(gl) {
 function initShaderProgram(gl, vsSource, fsSource) {
   const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
   const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+  if (!vertexShader || !fragmentShader) {
+    console.error('Failed to create shaders');
+    return null;
+  }
+
   const shaderProgram = gl.createProgram();
+  if (!(vertexShader instanceof WebGLShader) || !(fragmentShader instanceof WebGLShader)) {
+    console.error('Shader creation failed');
+    return null;
+  }
   gl.attachShader(shaderProgram, vertexShader);
   gl.attachShader(shaderProgram, fragmentShader);
   gl.linkProgram(shaderProgram);
