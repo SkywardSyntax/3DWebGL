@@ -12,6 +12,8 @@ function Home() {
   const isDragging = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
 
+  const [isDialogVisible, setIsDialogVisible] = useState(false);
+
   const handleMouseDown = (e) => {
     isDragging.current = true;
     lastMousePos.current = { x: e.clientX, y: e.clientY };
@@ -57,6 +59,11 @@ function Home() {
 
   const handleToggleMesh = () => {
     setShowMesh(!showMesh);
+  };
+
+  const handleDismissDialog = () => {
+    setIsDialogVisible(false);
+    localStorage.setItem('visited', 'true');
   };
 
   useEffect(() => {
@@ -105,6 +112,13 @@ function Home() {
   }, []);
 
   useEffect(() => {
+    const visited = localStorage.getItem('visited');
+    if (!visited) {
+      setIsDialogVisible(true);
+    }
+  }, []);
+
+  useEffect(() => {
     drawScene();
   }, [rotationQuat, zoomLevel, showMesh]);
 
@@ -147,6 +161,14 @@ function Home() {
       <button onClick={handleToggleMesh} style={{ position: 'absolute', top: '10px', left: '10px' }}>
         Toggle Mesh
       </button>
+      {isDialogVisible && (
+        <div className="dialog-box">
+          <h2>Welcome to the 3D Cube Application</h2>
+          <p>This application showcases a 3D cube rendered using WebGL2. You can interact with the cube by rotating and zooming in/out. The application includes various optimizations such as frustum culling, caching mechanisms, and advanced lighting and shadow techniques.</p>
+          <p>Enjoy exploring the 3D cube and its features!</p>
+          <button onClick={handleDismissDialog} className="dismiss-button">Dismiss</button>
+        </div>
+      )}
     </>
   );
 }
