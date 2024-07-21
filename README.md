@@ -78,3 +78,23 @@ The light source is fixed and positioned in the scene. The vertex shader include
 ### Adjusting Light Source
 
 To adjust the light source position and color, you can modify the relevant code in `pages/index.js`. Look for the light position and color definitions in the `initProgramInfo` function and update them as needed.
+
+## Enhanced Lighting and Shadows
+
+This project now includes enhanced lighting and shadows using Phong shading, shadow mapping, and multiple light sources. The shaders have been updated to provide more realistic lighting effects.
+
+### Phong Shading
+
+The shaders now use Phong shading to calculate lighting effects. This includes ambient, diffuse, and specular components for more realistic lighting.
+
+### Shadow Mapping
+
+Shadow mapping has been implemented to add realistic shadows to the scene. Depth textures are used for shadow casting.
+
+### Multiple Light Sources
+
+The scene now supports multiple light sources, including point lights and spotlights. This allows for more complex and realistic lighting setups.
+
+### Adjusting Light Properties
+
+To adjust the light properties, such as position, color, and type, you can modify the relevant code in `pages/index.js`. Look for the light definitions in the `initProgramInfo` function and update them as needed.

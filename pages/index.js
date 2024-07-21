@@ -146,15 +146,23 @@ function initProgramInfo(gl) {
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
     uniform mat4 uNormalMatrix;
+    uniform vec3 uLightPosition;
+    uniform vec3 uLightColor;
+    uniform vec3 uAmbientLight;
     varying highp vec3 vLighting;
+    varying highp vec3 vNormal;
+    varying highp vec3 vPosition;
     void main(void) {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-      highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
-      highp vec3 directionalLightColor = vec3(1, 1, 1);
-      highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
-      highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
-      highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
-      vLighting = ambientLight + (directionalLightColor * directional);
+      vNormal = mat3(uNormalMatrix) * aVertexNormal;
+      vPosition = vec3(uModelViewMatrix * aVertexPosition);
+      highp vec3 ambient = uAmbientLight;
+      highp vec3 lightDirection = normalize(uLightPosition - vPosition);
+      highp float diffuse = max(dot(vNormal, lightDirection), 0.0);
+      highp vec3 reflectDir = reflect(-lightDirection, vNormal);
+      highp vec3 viewDir = normalize(-vPosition);
+      highp float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+      vLighting = ambient + (uLightColor * diffuse) + (uLightColor * specular);
     }
   `;
 
@@ -188,6 +196,9 @@ function initProgramInfo(gl) {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
       normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
+      lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
+      lightColor: gl.getUniformLocation(shaderProgram, 'uLightColor'),
+      ambientLight: gl.getUniformLocation(shaderProgram, 'uAmbientLight'),
     },
     edgeUniformLocations: {
       projectionMatrix: gl.getUniformLocation(edgeShaderProgram, 'uProjectionMatrix'),
@@ -325,6 +336,10 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projection
   mat4.invert(normalMatrix, modelViewMatrix);
   mat4.transpose(normalMatrix, normalMatrix);
   gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix);
+
+  gl.uniform3fv(programInfo.uniformLocations.lightPosition, [5.0, 5.0, 5.0]);
+  gl.uniform3fv(programInfo.uniformLocations.lightColor, [1.0, 1.0, 1.0]);
+  gl.uniform3fv(programInfo.uniformLocations.ambientLight, [0.3, 0.3, 0.3]);
 
   {
     const vertexCount = 36;
