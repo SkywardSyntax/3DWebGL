@@ -1,13 +1,30 @@
-# GitHub Codespaces ♥️ Next.js
+# WebGL 3D Cube
 
-Welcome to your shiny new Codespace running Next.js! We've got everything fired up and running for you to explore Next.js.
+This repository contains a simple WebGL application that renders a 3D cube on a black background. The cube is red.
 
-You've got a blank canvas to work on from a git perspective as well. There's a single initial commit with the what you're seeing right now - where you go from here is up to you!
-
-Everything you do here is contained within this one codespace. There is no repository on GitHub yet. If and when you’re ready you can click "Publish Branch" and we’ll create your repository and push up your project. If you were just exploring then and have no further need for this code then you can simply delete your codespace and it's gone forever.
+## Getting Started
 
 To run this application:
 
-```
-npm run dev
-```
+1. Install dependencies:
+   ```
+   npm install
+   ```
+
+2. Run the development server:
+   ```
+   npm run dev
+   ```
+
+3. Open your browser and navigate to `http://localhost:3000` to see the 3D cube.
+
+## Project Structure
+
+- `pages/index.js`: Contains the WebGL code for rendering the 3D cube.
+- `global.css`: Contains global styles for the application, including setting the background color to black.
+
+## Dependencies
+
+- `next`: ^14.1.1
+- `react`: ^18.2.0
+- `react-dom`: ^18.2.0
