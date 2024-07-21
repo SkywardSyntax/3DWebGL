@@ -1,9 +1,9 @@
-
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { mat4 } from 'gl-matrix';
 
 function Home() {
   const canvasRef = useRef(null);
+  const [rotationAngle, setRotationAngle] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -56,7 +56,7 @@ function Home() {
     const buffers = initBuffers(gl);
 
     const draw = () => {
-      drawScene(gl, programInfo, buffers);
+      drawScene(gl, programInfo, buffers, rotationAngle);
       requestAnimationFrame(draw);
     };
 
@@ -66,11 +66,22 @@ function Home() {
       window.removeEventListener('resize', resizeCanvas);
     };
 
-  }, []);
+  }, [rotationAngle]);
 
   return (
-    <canvas ref={canvasRef} 
-            style={{ width: '100vw', height: '100vh' }}></canvas>
+    <>
+      <canvas ref={canvasRef} 
+              style={{ width: '100vw', height: '100vh' }}></canvas>
+      <div className="slider">
+        <input
+          type="range"
+          min="0"
+          max="360"
+          value={rotationAngle}
+          onChange={(e) => setRotationAngle(e.target.value)}
+        />
+      </div>
+    </>
   );
 }
 
@@ -169,7 +180,7 @@ function initBuffers(gl) {
   };
 }
 
-function drawScene(gl, programInfo, buffers) {
+function drawScene(gl, programInfo, buffers, rotationAngle) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0); // Clear to black, fully opaque
   gl.clearDepth(1.0); // Clear everything
   gl.enable(gl.DEPTH_TEST); // Enable depth testing
@@ -198,6 +209,9 @@ function drawScene(gl, programInfo, buffers) {
   // Rotate to achieve isometric view
   mat4.rotate(modelViewMatrix, modelViewMatrix, Math.PI / 4, [0, 1, 0]);
   mat4.rotate(modelViewMatrix, modelViewMatrix, Math.atan(Math.sqrt(2)), [1, 0, -1]);
+
+  // Apply rotation from slider
+  mat4.rotate(modelViewMatrix, modelViewMatrix, rotationAngle * Math.PI / 180, [0, 1, 0]);
 
   {
     const numComponents = 3;

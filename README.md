@@ -28,3 +28,8 @@ To run this application:
 - `next`: ^14.1.1
 - `react`: ^18.2.0
 - `react-dom`: ^18.2.0
+
+## Using the Slider
+
+A slider UI component has been added to control the rotation of the cube. You can use the slider at the bottom of the screen to rotate the cube along the Y-axis.
+
