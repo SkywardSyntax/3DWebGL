@@ -5,6 +5,7 @@ function Home() {
   const canvasRef = useRef(null);
   const [rotationQuat, setRotationQuat] = useState(quat.create());
   const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [showMesh, setShowMesh] = useState(false);
   const programInfoRef = useRef(null);
   const buffersRef = useRef(null);
   const glRef = useRef(null);
@@ -54,6 +55,10 @@ function Home() {
     e.preventDefault();
   };
 
+  const handleToggleMesh = () => {
+    setShowMesh(!showMesh);
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const gl = canvas.getContext('webgl');
@@ -97,7 +102,7 @@ function Home() {
 
   useEffect(() => {
     drawScene();
-  }, [rotationQuat, zoomLevel]);
+  }, [rotationQuat, zoomLevel, showMesh]);
 
   const drawScene = () => {
     const gl = glRef.current;
@@ -122,7 +127,7 @@ function Home() {
     const projectionMatrix = mat4.clone(programInfo.projectionMatrix);
     mat4.scale(projectionMatrix, projectionMatrix, [zoomLevel, zoomLevel, 1.0]);
 
-    drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix);
+    drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix, showMesh);
   };
 
   return (
@@ -135,6 +140,9 @@ function Home() {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       ></canvas>
+      <button onClick={handleToggleMesh} style={{ position: 'absolute', top: '10px', left: '10px' }}>
+        Toggle Mesh
+      </button>
     </>
   );
 }
@@ -180,17 +188,28 @@ function initProgramInfo(gl) {
     }
   `;
 
+  const fsSourceMesh = `
+    void main(void) {
+      gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+    }
+  `;
+
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const edgeShaderProgram = initShaderProgram(gl, vsSource, fsSourceEdges);
+  const meshShaderProgram = initShaderProgram(gl, vsSource, fsSourceMesh);
   return {
     program: shaderProgram,
     edgeProgram: edgeShaderProgram,
+    meshProgram: meshShaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
     },
     edgeAttribLocations: {
       vertexPosition: gl.getAttribLocation(edgeShaderProgram, 'aVertexPosition'),
+    },
+    meshAttribLocations: {
+      vertexPosition: gl.getAttribLocation(meshShaderProgram, 'aVertexPosition'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -203,6 +222,10 @@ function initProgramInfo(gl) {
     edgeUniformLocations: {
       projectionMatrix: gl.getUniformLocation(edgeShaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(edgeShaderProgram, 'uModelViewMatrix'),
+    },
+    meshUniformLocations: {
+      projectionMatrix: gl.getUniformLocation(meshShaderProgram, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(meshShaderProgram, 'uModelViewMatrix'),
     },
   };
 }
@@ -290,7 +313,7 @@ function initBuffers(gl) {
   };
 }
 
-function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix) {
+function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projectionMatrix, showMesh) {
   gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
   {
     const numComponents = 3;
@@ -357,6 +380,19 @@ function drawSceneInternal(gl, programInfo, buffers, modelViewMatrix, projection
     const type = gl.UNSIGNED_SHORT;
     const offset = 0;
     gl.drawElements(gl.LINES, edgeVertexCount, type, offset);
+  }
+
+  if (showMesh) {
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+    gl.useProgram(programInfo.meshProgram);
+    gl.uniformMatrix4fv(programInfo.meshUniformLocations.projectionMatrix, false, projectionMatrix);
+    gl.uniformMatrix4fv(programInfo.meshUniformLocations.modelViewMatrix, false, modelViewMatrix);
+    {
+      const vertexCount = 36;
+      const type = gl.UNSIGNED_SHORT;
+      const offset = 0;
+      gl.drawElements(gl.LINES, vertexCount, type, offset);
+    }
   }
 }
 

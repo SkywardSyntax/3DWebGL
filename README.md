@@ -118,3 +118,12 @@ To adjust the light source properties, such as direction and color, you can modi
 ### Viewing Realistic Shadows
 
 To see the realistic shadows in action, run the application as described in the "Getting Started" section. The shadows should now appear smoother and more realistic due to the advanced shadow mapping techniques.
+
+## Viewing the Triangle Mesh
+
+A new button has been added to the UI to toggle the visibility of the triangle mesh for the cube. The button is labeled "Toggle Mesh".
+
+### How to Use
+
+1. Run the application as described in the "Getting Started" section.
+2. Click the "Toggle Mesh" button located at the top-left corner of the screen to toggle the visibility of the triangle mesh for the cube.
