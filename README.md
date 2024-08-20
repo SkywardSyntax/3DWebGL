@@ -131,3 +131,6 @@ A new button has been added to the UI to toggle the visibility of the triangle m
 ## WebGL2 Compatibility
 
 This project now uses WebGL2 for rendering the 3D cube. WebGL2 provides additional features and improved performance compared to WebGL1. Ensure that you are using a WebGL2-compatible browser to run this application.
+
+## Demo
+![demo](demo.png)
